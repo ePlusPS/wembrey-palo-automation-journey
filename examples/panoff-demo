@@ -1,0 +1,136 @@
+#!/usr/bin/env python
+import xml.etree.ElementTree as xt
+import sys
+import os
+
+# set variables
+error_log = ''
+my_xml = ''
+devicegroups = ''
+templates = ''
+
+
+# Clear the screen
+os.system('clear')
+print('Palo Alto XML automation demo - W Embrey - ePlus')
+
+# get the name of the XML file to use
+def get_infile():
+    infile = input(
+        'Enter the name of the XML file you want to work from in the same directory as this script\nExample "infile.xml" in current directory: ')
+    if not bool(infile):
+        infile = 'infile.xml'
+        print(f"\nYou didn't enter an input file name. We will use 'infile.xml' as the input file.")
+    return infile
+
+
+def get_outfile():
+    outfile = input('\nEnter the name for the output file eg: "outfile.xml": ')
+    if not bool(outfile):
+        outfile = 'outfile.xml'
+        print(f"\nYou didn't enter an output file name. We will use 'outfile.xml' as the output file.")
+    return outfile
+
+def get_xml():
+    # Open the input file and convert to XML tree
+    infile = get_infile()
+    global my_xml
+    global error_log
+    try:
+        f = open(infile, 'r', encoding='utf8')
+        my_data = f.read()
+        my_xml = xt.fromstring(my_data)
+        print(f'\nXML successfully file loaded as {my_xml}')
+        f.close()
+        return my_xml
+    except Exception as e:
+        print(f'\nFile open failed with error:\n{e}')
+        error_log = error_log + str(e)
+        sys.exit()
+
+
+def set_pano_ip():
+    global my_xml
+    # locate the right element
+    settings = {} # create a dictionary for the system settings
+
+    try:
+        devices = my_xml.find('devices')
+        print(f'Devices: {devices}')
+        deviceconfig = devices[0].find('deviceconfig')
+        print(f'Deviceconfig: {deviceconfig}')
+        system = deviceconfig.find('system')
+        print(f'System: {system}')
+        ip = system.find('ip-address')
+        settings['ip'] = ip.text
+        mask = system.find('netmask')
+        settings['mask'] = mask.text
+        gw = system.find('default-gateway')
+        settings['gw'] = gw.text
+        hostname = system.find('hostname')
+        settings['hostname'] = hostname.text
+        dns1 = system.find('dns-setting')[0][0]
+        settings['dns1'] = dns1.text
+    # handle an error without crashing if you get one
+    except Exception as e:
+        print(f'Unable to get settings with error: {e}')
+
+    # display the settings gathered from the config file
+    print(f'\nCurrent system network settings\n')
+    for index, key in enumerate(settings):
+        print(f'{(index + 1)} {key:>10}: {settings[key]:<}')
+
+    # accept of change settings
+    while True:
+        command = input('Update settings or accept? [Enter] to accept'
+                    ', Y to update(y)')
+        if str.lower(command) != 'y':
+            ip.text = settings['ip']
+            mask.text = settings['mask']
+            gw.text = settings['gw']
+            hostname.text = settings['hostname']
+            dns1.text = settings['dns1']
+            write_xml_out(my_xml)
+            break
+        else:
+            print('[Enter] to accept or update:')
+            for key in settings.keys():
+                update = input(f'{key:>10}: {settings[key]:<}:')
+                if bool(update):
+                    settings[key] = update
+        print(f'\nUpdated system network settings\n')
+        for index, key in enumerate(settings):
+            print(f'{(index + 1)} {key:>10}: {settings[key]:<}')
+
+
+def write_xml_out(my_xml):
+    global error_log
+    outfile = get_outfile()
+    command = input('Write data to xml file? (y/n)')
+    if str.lower(command) != 'y':
+        print(error_log)
+        print('\nExiting now')
+        sys.exit()
+    try:
+        print(f'Writing data to file')
+        tree = xt.ElementTree(my_xml)
+        tree.write(outfile, encoding='UTF-8', xml_declaration=True, method='xml')
+    except Exception as e:
+        print(f'Operation failed with error:\n{e}')
+        error_log = error_log + '\n' + str(e)
+        print(error_log)
+        print('\nExiting now')
+        sys.exit()
+
+
+def main():
+    get_xml()
+    command = input('Set IP for Panorama (y/n)')
+    if str.lower(command) != 'y':
+        print(error_log)
+        print('\nExiting now')
+        sys.exit()
+    set_pano_ip()
+
+if __name__ == "__main__":
+    main()
