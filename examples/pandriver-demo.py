@@ -9,7 +9,7 @@ import pandevice.device
 
 # set global variables
 # you can leave these blank because we will check for them
-hostname = '3.84.225.171'
+hostname = '3.218.191.224'
 username = 'admin'
 password = 'badmin'
 
